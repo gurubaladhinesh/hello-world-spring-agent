@@ -1,0 +1,16 @@
+logging:
+  level:
+    org.springframework.ai.chat.client.advisor: DEBUG
+spring:
+  application:
+    name: hello-world-spring-agent
+  ai:
+    openai:
+      base-url: https://ollama.com/v1
+      api-key: ${OLLAMA_API_KEY}
+      chat:
+        options:
+          # Required model that supports tool-calling for agent orchestration
+          model: "gpt-oss:20b-cloud"
+          # Controls creativity; lower numbers make workflows more deterministic
+          temperature: 0.3
