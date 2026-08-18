@@ -15,21 +15,12 @@ import java.util.concurrent.Executors;
 public class StudentTeacherWorkflowOrchestrator {
 
   private final ChatClient supervisorModel;
-  private final TeacherTeachTopicAgent teacherTeach;
-  private final StudentAnswerQuestionAgent studentAnswer;
-  private final TeacherVerifyAnswerAgent teacherVerify;
-  private final StudentReviseAnswerAgent studentRevise;
+  private final TeacherAgent teacher;
+  private final StudentAgent student;
 
-  public StudentTeacherWorkflowOrchestrator(
-      ChatClient.Builder builder,
-      TeacherTeachTopicAgent teacherTeach,
-      StudentAnswerQuestionAgent studentAnswer,
-      TeacherVerifyAnswerAgent teacherVerify,
-      StudentReviseAnswerAgent studentRevise) {
-    this.teacherTeach = teacherTeach;
-    this.studentAnswer = studentAnswer;
-    this.teacherVerify = teacherVerify;
-    this.studentRevise = studentRevise;
+  public StudentTeacherWorkflowOrchestrator(ChatClient.Builder builder, TeacherAgent teacher, StudentAgent student) {
+    this.teacher = teacher;
+    this.student = student;
 
     // Supervisor Client configured to autonomously call sub-agents as tools
     this.supervisorModel = builder
@@ -39,7 +30,7 @@ public class StudentTeacherWorkflowOrchestrator {
                 Coordinate them to ensure the student correctly masters the topic and answers the question accurately.
                 """)
         .defaultAdvisors()
-        .defaultTools(teacherTeach, studentAnswer, studentRevise, teacherVerify)
+        .defaultTools(teacher, student)
         .build();
   }
 
@@ -51,9 +42,9 @@ public class StudentTeacherWorkflowOrchestrator {
     String topic = "Circulatory system";
     String question = "What is an atrium?";
 
-    String lesson = teacherTeach.teachTopic(topic);
-    String answer = studentAnswer.answerQuestion(lesson, question);
-    String verification = teacherVerify.verifyAnswer(question, answer);
+    String lesson = teacher.teachTopic(topic);
+    String answer = student.answerQuestion(lesson, question);
+    String verification = teacher.verifyAnswer(question, answer);
 
     System.out.println("Teacher's Lesson: " + lesson);
     System.out.println("Student Answer: " + answer);
@@ -70,9 +61,9 @@ public class StudentTeacherWorkflowOrchestrator {
     scope.put("question", "What is an atrium?");
 
     // Step-by-step pipeline execution
-    scope.put("lesson", teacherTeach.teachTopic((String) scope.get("topic")));
-    scope.put("answer", studentAnswer.answerQuestion((String) scope.get("lesson"), (String) scope.get("question")));
-    scope.put("verificationResult", teacherVerify.verifyAnswer((String) scope.get("question"), (String) scope.get("answer")));
+    scope.put("lesson", teacher.teachTopic((String) scope.get("topic")));
+    scope.put("answer", student.answerQuestion((String) scope.get("lesson"), (String) scope.get("question")));
+    scope.put("verificationResult", teacher.verifyAnswer((String) scope.get("question"), (String) scope.get("answer")));
 
     System.out.println("Verification result: " + scope.get("verificationResult"));
   }
@@ -85,9 +76,9 @@ public class StudentTeacherWorkflowOrchestrator {
     String topic = "Circulatory system";
     String question = "What is an atrium?";
 
-    String lesson = teacherTeach.teachTopic(topic);
-    String currentAnswer = studentAnswer.answerQuestion(lesson, question);
-    String feedback = teacherVerify.verifyAnswer(question, currentAnswer);
+    String lesson = teacher.teachTopic(topic);
+    String currentAnswer = student.answerQuestion(lesson, question);
+    String feedback = teacher.verifyAnswer(question, currentAnswer);
 
     int maxIterations = 3;
     int currentIteration = 0;
@@ -97,8 +88,8 @@ public class StudentTeacherWorkflowOrchestrator {
         !(feedback.toLowerCase().contains("correct") && !feedback.toLowerCase().contains("incorrect"))) {
 
       System.out.println("Iteration " + (currentIteration + 1) + " - Feedback: " + feedback);
-      currentAnswer = studentRevise.reviseAnswer(lesson, question, currentAnswer, feedback);
-      feedback = teacherVerify.verifyAnswer(question, currentAnswer);
+      currentAnswer = student.reviseAnswer(lesson, question, currentAnswer, feedback);
+      feedback = teacher.verifyAnswer(question, currentAnswer);
       currentIteration++;
     }
 
@@ -111,12 +102,12 @@ public class StudentTeacherWorkflowOrchestrator {
   // ==========================================
   public void parallelWorkflow() {
     System.out.println("---------- PARALLEL WORKFLOW (SPRING AI) ------------");
-    String lesson = teacherTeach.teachTopic("Circulatory system");
+    String lesson = teacher.teachTopic("Circulatory system");
     String question = "What is an atrium?";
 
     // Execute student responses concurrently using CompletableFuture
-    CompletableFuture<String> task1 = CompletableFuture.supplyAsync(() -> studentAnswer.answerQuestion(lesson, question));
-    CompletableFuture<String> task2 = CompletableFuture.supplyAsync(() -> studentAnswer.answerQuestion(lesson, question)); // Replicating Student B
+    CompletableFuture<String> task1 = CompletableFuture.supplyAsync(() -> student.answerQuestion(lesson, question));
+    CompletableFuture<String> task2 = CompletableFuture.supplyAsync(() -> student.answerQuestion(lesson, question)); // Replicating Student B
 
     CompletableFuture.allOf(task1, task2).join();
 
@@ -129,7 +120,7 @@ public class StudentTeacherWorkflowOrchestrator {
   // ==========================================
   public void parallelMapperWorkflow() {
     System.out.println("---------- PARALLEL MAPPER WORKFLOW (SPRING AI) ------------");
-    String lesson = teacherTeach.teachTopic("Circulatory system");
+    String lesson = teacher.teachTopic("Circulatory system");
     String question = "What is an atrium?";
     List<String> studentList = List.of("Alice", "Bob", "Charlie");
 
@@ -138,7 +129,7 @@ public class StudentTeacherWorkflowOrchestrator {
       List<CompletableFuture<String>> futures = studentList.stream()
           .map(student -> CompletableFuture.supplyAsync(() -> {
             // Prepend student persona dynamically if needed
-            return studentAnswer.answerQuestion(lesson, "(" + student + ") " + question);
+            return this.student.answerQuestion(lesson, "(" + student + ") " + question);
           }, executor))
           .toList();
 
@@ -159,9 +150,9 @@ public class StudentTeacherWorkflowOrchestrator {
 
     // 1. Initial Assessment Phase
     String question = "What is ventricle";
-    String lesson = teacherTeach.teachTopic("Circulatory system");
-    String answer = studentAnswer.answerQuestion(lesson, question);
-    String verificationResult = teacherVerify.verifyAnswer(question, answer);
+    String lesson = teacher.teachTopic("Circulatory system");
+    String answer = student.answerQuestion(lesson, question);
+    String verificationResult = teacher.verifyAnswer(question, answer);
 
     scope.put("lesson", lesson);
     scope.put("question", question);
@@ -172,7 +163,7 @@ public class StudentTeacherWorkflowOrchestrator {
     boolean needsCorrection = !scope.get("verificationResult").toString().toLowerCase().contains("correct");
     if (needsCorrection) {
       System.out.println("--- Revising Answer based on Teacher Feedback ---");
-      String revisedAnswer = studentRevise.reviseAnswer(
+      String revisedAnswer = student.reviseAnswer(
           (String) scope.get("lesson"),
           (String) scope.get("question"),
           (String) scope.get("answer"),
